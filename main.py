@@ -32,14 +32,17 @@ class Server:
         self.task_list.append(task)
         self.available_at_tick = task.end_time
 
-    def update(self):
-        tasks_to_delete = []
+    def update_tasks(self):
+        tasks = []
         for task in self.task_list:
             task.update()
             if (task.has_completed()):
-                tasks_to_delete.append(task)
+                tasks.append(task)
 
-        self.task_list = [t for t in self.task_list if t not in tasks_to_delete]
+        self._cleanup_tasks(tasks)
+
+    def _cleanup_tasks(self, tasks):
+        self.task_list = [t for t in self.task_list if t not in tasks]
 
 class ServerManager:
     _server_list = []
@@ -48,17 +51,17 @@ class ServerManager:
         return not len(self._server_list)
 
     def update_servers(self):
-        servers_to_delete = []
+        servers = []
         for server in self._server_list:
-            server.update()
+            server.update_tasks()
             if not len(server.task_list):
-                servers_to_delete.append(server)
+                servers.append(server)
 
-        self._server_list = [s for s in self._server_list if s not in servers_to_delete]
+        self._shutdown_unloaded_servers(servers)
 
     def allocate_task(self, now):
         if not self._has_server_available():
-            self._create_server(now)
+            self._create_and_boot_server(now)
         else:
             max_tick = 0
             if len(self._server_list) <= 0:
@@ -73,7 +76,10 @@ class ServerManager:
             task = Task(now)
             pair[max_tick].add_task(task)
 
-    def _create_server(self, now):
+    def _shutdown_unloaded_servers(self, servers):
+        self._server_list = [s for s in self._server_list if s not in servers]
+
+    def _create_and_boot_server(self, now):
         server = Server()
         task = Task(now)
         server.add_task(task)
