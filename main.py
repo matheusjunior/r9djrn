@@ -1,10 +1,13 @@
 class Task:
     _duration = 0
+    _task_id = 0
 
     def __init__(self, start_time):
         self.start_time = start_time
         self.end_time = start_time + Task._duration
         self.run_time = 0
+        self.id = Task._task_id
+        Task._task_id += 1
 
     def update(self):
         self.run_time += 1
@@ -16,11 +19,11 @@ class Server:
     _capacity = 0
 
     def __init__(self):
-        self.task_list = []
+        self.task_map = {}
         self.available_at_tick = 0
     
     def is_at_load_limit(self):
-        return len(self.task_list) == Server._capacity
+        return len(self.task_map) == Server._capacity
 
     def get_available_at_tick(self):
         return self.available_at_tick
@@ -28,21 +31,22 @@ class Server:
     def add_task(self, task):
         if self.is_at_load_limit():
             return False
-        
-        self.task_list.append(task)
+
+        self.task_map[task.id] = task
         self.available_at_tick = task.end_time
 
     def update_tasks(self):
-        tasks = []
-        for task in self.task_list:
+        tasks = {}
+        for task in self.task_map.values():
             task.update()
             if (task.has_completed()):
-                tasks.append(task)
+                tasks[task.id] = task
 
-        self._cleanup_tasks(tasks)
+        if tasks:
+            self._cleanup_tasks(tasks)
 
     def _cleanup_tasks(self, tasks):
-        self.task_list = [t for t in self.task_list if t not in tasks]
+        self.task_map = {k: self.task_map[k] for k in self.task_map if k not in tasks.keys()}
 
 class ServerManager:
     _server_list = []
@@ -54,7 +58,7 @@ class ServerManager:
         servers = []
         for server in self._server_list:
             server.update_tasks()
-            if not len(server.task_list):
+            if not len(server.task_map):
                 servers.append(server)
 
         self._shutdown_unloaded_servers(servers)
@@ -67,14 +71,14 @@ class ServerManager:
             if len(self._server_list) <= 0:
                 return
 
-            pair = {max_tick: self._server_list[0]}
+            unloaded_server = self._server_list[0]
             for server in self._server_list:
                 if server.available_at_tick > max_tick and not server.is_at_load_limit():
                     max_tick = server.available_at_tick
-                    pair = {max_tick: server}
+                    unloaded_server = server
 
             task = Task(now)
-            pair[max_tick].add_task(task)
+            unloaded_server.add_task(task)
 
     def _shutdown_unloaded_servers(self, servers):
         self._server_list = [s for s in self._server_list if s not in servers]
@@ -97,11 +101,11 @@ class ServerManager:
 
     def dump(self):
         if len(self._server_list) == 1:
-            print(len(self._server_list[0].task_list))
+            print(len(self._server_list[0].task_map))
         else:
             s = ""
             for server in self._server_list:
-                s += '{},'.format(len(server.task_list))
+                s += '{},'.format(len(server.task_map))
             print(s)
 
 with open('input', 'r') as input:
