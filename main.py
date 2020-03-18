@@ -47,7 +47,7 @@ class ServerManager:
     def is_empty(self):
         return not len(self._server_list)
 
-    def update_running_stats(self):
+    def update_servers(self):
         servers_to_delete = []
         for server in self._server_list:
             server.update()
@@ -56,7 +56,30 @@ class ServerManager:
 
         self._server_list = [s for s in self._server_list if s not in servers_to_delete]
 
-    def has_sever_available(self):
+    def allocate_task(self, now):
+        if not self._has_server_available():
+            self._create_server(now)
+        else:
+            max_tick = 0
+            if len(self._server_list) <= 0:
+                return
+
+            pair = {max_tick: self._server_list[0]}
+            for server in self._server_list:
+                if server.available_at_tick > max_tick and not server.is_at_load_limit():
+                    max_tick = server.available_at_tick
+                    pair = {max_tick: server}
+
+            task = Task(now)
+            pair[max_tick].add_task(task)
+
+    def _create_server(self, now):
+        server = Server()
+        task = Task(now)
+        server.add_task(task)
+        self._server_list.append(server)
+
+    def _has_server_available(self):
         if not len(self._server_list):
             return False
         else:
@@ -65,26 +88,6 @@ class ServerManager:
                     continue
                 else:
                     return True
-
-    def allocate(self, now, duration):
-        max_available_at_tick = 0
-        if len(self._server_list) <= 0:
-            return 
-        
-        pair = {max_available_at_tick: self._server_list[0]}
-        for server in self._server_list:
-            if server.available_at_tick > max_available_at_tick and not server.is_at_load_limit():
-                max_available_at_tick = server.available_at_tick
-                pair = {max_available_at_tick: server}
-        
-        task = Task(now)
-        pair[max_available_at_tick].add_task(task)
-
-    def create_server(self, now):
-        server = Server()
-        task = Task(now)
-        server.add_task(task)
-        self._server_list.append(server)
 
     def dump(self):
         if len(self._server_list) == 1:
@@ -106,22 +109,17 @@ with open('input', 'r') as input:
     tick = 1
     for line in input:
         ntasks = int(line)
-        # print('ntasks {}', ntasks)
         if not ntasks:
             manager.dump()
-            manager.update_running_stats()
+            manager.update_servers()
             tick += 1
             continue
 
         for i in range(1, ntasks + 1):
-            # print(i)
-            if manager.has_sever_available():
-                manager.allocate(tick, ttask)
-            else:
-                manager.create_server(tick)
+            manager.allocate_task(tick)
 
         manager.dump()
-        manager.update_running_stats()
+        manager.update_servers()
         tick += 1
     
     while True:
@@ -129,6 +127,6 @@ with open('input', 'r') as input:
             break
 
         manager.dump()
-        manager.update_running_stats()
+        manager.update_servers()
         tick += 1
     print('0')
