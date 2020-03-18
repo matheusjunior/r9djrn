@@ -28,9 +28,13 @@ class Task:
 class Server:
     _capacity = 0
 
-    def __init__(self):
+    def __init__(self, now):
         self.task_map = {}
         self.available_at_tick = 0
+        self._start_time = now
+
+    def get_start_time(self):
+        return self._start_time
     
     def is_at_load_limit(self):
         return len(self.task_map) == Server._capacity
@@ -60,15 +64,17 @@ class Server:
 
 class ServerManager:
     _server_list = []
+    total_cost = 0
 
     def is_empty(self):
         return not len(self._server_list)
 
-    def update_servers(self):
+    def update_servers(self, now):
         servers = []
         for server in self._server_list:
             server.update_tasks()
             if not len(server.task_map):
+                ServerManager.total_cost += now - server.get_start_time() + 1
                 servers.append(server)
 
         if servers:
@@ -95,7 +101,7 @@ class ServerManager:
         self._server_list = [s for s in self._server_list if s not in servers]
 
     def _create_and_boot_server(self, now):
-        server = Server()
+        server = Server(now)
         task = Task(now)
         server.add_task(task)
         self._server_list.append(server)
@@ -128,12 +134,13 @@ with open('input', 'r') as input:
     Server._capacity = umax
     manager = ServerManager()
     
+    cost = 0
     tick = 1
     for line in input:
         ntasks = int(line)
         if not ntasks:
             manager.dump()
-            manager.update_servers()
+            manager.update_servers(tick)
             tick += 1
             continue
 
@@ -141,7 +148,7 @@ with open('input', 'r') as input:
             manager.allocate_task(tick)
 
         manager.dump()
-        manager.update_servers()
+        manager.update_servers(tick)
         tick += 1
     
     while True:
@@ -149,6 +156,7 @@ with open('input', 'r') as input:
             break
 
         manager.dump()
-        manager.update_servers()
+        manager.update_servers(tick)
         tick += 1
     print('0')
+    print(ServerManager.total_cost)
