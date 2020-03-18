@@ -1,3 +1,13 @@
+# Thing that could be improved:
+#   - use docstring
+#   - unit test
+#   - stress test
+#   - sanitize input
+#   - use dictionary for servers instead of list
+#   - did not use Singleton since it is considered by some an anti-pattern
+
+# Not multithread safe.
+
 class Task:
     _duration = 0
     _task_id = 0
@@ -61,7 +71,8 @@ class ServerManager:
             if not len(server.task_map):
                 servers.append(server)
 
-        self._shutdown_unloaded_servers(servers)
+        if servers:
+            self._shutdown_unloaded_servers(servers)
 
     def allocate_task(self, now):
         if not self._has_server_available():
@@ -106,6 +117,7 @@ class ServerManager:
             s = ""
             for server in self._server_list:
                 s += '{},'.format(len(server.task_map))
+            s = s[:-1]
             print(s)
 
 with open('input', 'r') as input:
